@@ -87,3 +87,57 @@ it('maps a null userId onto a null target', function() {
         ->and($captured[0]->targetId)->toBeNull()
         ->and($captured[0]->outcome)->toBe(AuditEvent::OUTCOME_FAILURE);
 });
+
+it('drops events whose name is outside the frozen AuthEvent vocabulary', function() {
+    $captured = [];
+    AuditKit::$plugin->getBus()->setSinks([capturingBusSink($captured)]);
+    AuthKitBridge::resetVocabulary();
+
+    // A foreign domain riding the AuthEvent contract (the Savepoint pattern):
+    // AuthEvent does not validate names, so this constructs fine — but the
+    // bridge, as a contract consumer, must ignore the unknown name rather than
+    // stamp a non-auth event into recorders' chains as `category: auth`.
+    AuthKitBridge::relay(new AuthEvent(
+        name: 'savepoint.restore_applied',
+        emitter: 'savepoint',
+        outcome: AuthEvent::OUTCOME_SUCCESS,
+        userId: 42,
+        details: ['savepointId' => 7],
+    ));
+
+    expect($captured)->toBeEmpty();
+});
+
+it('relays every name in the frozen vocabulary and nothing else via reflection', function() {
+    $captured = [];
+    AuditKit::$plugin->getBus()->setSinks([capturingBusSink($captured)]);
+    AuthKitBridge::resetVocabulary();
+
+    $reflection = new ReflectionClass(AuthEvent::class);
+    $names = [];
+    foreach ($reflection->getReflectionConstants(ReflectionClassConstant::IS_PUBLIC) as $constant) {
+        $value = $constant->getValue();
+        if (is_string($value) && !str_starts_with($constant->getName(), 'OUTCOME_')) {
+            $names[] = $value;
+        }
+    }
+
+    expect($names)->not->toBeEmpty();
+
+    foreach ($names as $name) {
+        AuthKitBridge::relay(new AuthEvent(
+            name: $name,
+            emitter: 'test',
+            outcome: AuthEvent::OUTCOME_SUCCESS,
+        ));
+    }
+
+    // Outcome values are string constants too — they must not be in the vocabulary.
+    AuthKitBridge::relay(new AuthEvent(
+        name: AuthEvent::OUTCOME_SUCCESS,
+        emitter: 'test',
+        outcome: AuthEvent::OUTCOME_SUCCESS,
+    ));
+
+    expect($captured)->toHaveCount(count($names));
+});
