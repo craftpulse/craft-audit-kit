@@ -2,7 +2,7 @@
     "name": "craftpulse/craft-audit-kit",
     "description": "Foundational, tamper-evident audit primitives for Craft CMS — a neutral audit event contract, a dispatch bus, a byte-deterministic SHA-256 hash-chain engine, export formatters, SIEM forwarders, and external anchoring. The shared compliance base for the CraftPulse ecosystem.",
     "type": "craft-plugin",
-    "version": "1.0.0",
+    "version": "1.0.0-beta.1",
     "license": "MIT",
     "keywords": [
         "craft",
@@ -20,7 +20,7 @@
         "email": "support@craft-pulse.com",
         "issues": "https://github.com/craftpulse/craft-audit-kit/issues",
         "source": "https://github.com/craftpulse/craft-audit-kit",
-        "docs": "https://github.com/craftpulse/craft-audit-kit/blob/main/README.md"
+        "docs": "https://github.com/craftpulse/craft-audit-kit/blob/v5/README.md"
     },
     "authors": [
         {
@@ -66,7 +66,7 @@
         "handle": "audit-kit",
         "name": "Audit Kit",
         "class": "craftpulse\\auditkit\\AuditKit",
-        "documentationUrl": "https://github.com/craftpulse/craft-audit-kit/blob/main/README.md"
+        "documentationUrl": "https://github.com/craftpulse/craft-audit-kit/blob/v5/README.md"
     },
     "scripts": {
         "check-cs": "ecs check --ansi",
