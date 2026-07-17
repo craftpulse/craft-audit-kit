@@ -1,0 +1,88 @@
+{
+    "name": "craftpulse/craft-audit-kit",
+    "description": "Foundational, tamper-evident audit primitives for Craft CMS — a neutral audit event contract, a dispatch bus, a byte-deterministic SHA-256 hash-chain engine, export formatters, SIEM forwarders, and external anchoring. The shared compliance base for the CraftPulse ecosystem.",
+    "type": "craft-plugin",
+    "version": "1.0.0",
+    "license": "MIT",
+    "keywords": [
+        "craft",
+        "cms",
+        "craftcms",
+        "craft-plugin",
+        "audit",
+        "audit-log",
+        "compliance",
+        "tamper-evident",
+        "hash-chain",
+        "siem"
+    ],
+    "support": {
+        "email": "support@craft-pulse.com",
+        "issues": "https://github.com/craftpulse/craft-audit-kit/issues",
+        "source": "https://github.com/craftpulse/craft-audit-kit",
+        "docs": "https://github.com/craftpulse/craft-audit-kit/blob/main/README.md"
+    },
+    "authors": [
+        {
+            "name": "CraftPulse",
+            "homepage": "https://craft-pulse.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "craftcms/cms": "^5.0.0",
+        "dompdf/dompdf": "^2.0 || ^3.0"
+    },
+    "require-dev": {
+        "craftcms/ecs": "dev-main",
+        "craftcms/phpstan": "dev-main",
+        "craftpulse/craft-auth-kit": "^1.5.0@dev",
+        "markhuot/craft-pest-core": "^3.2"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../*",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
+    "suggest": {
+        "craftpulse/craft-auth-kit": "Bridges Auth Kit authentication events onto the audit bus (^1.5.0).",
+        "aws/aws-sdk-php": "Enables the S3 SIEM forwarder and S3 Object Lock anchor provider (^3.0)."
+    },
+    "autoload": {
+        "psr-4": {
+            "craftpulse\\auditkit\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "craftpulse\\auditkit\\tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "handle": "audit-kit",
+        "name": "Audit Kit",
+        "class": "craftpulse\\auditkit\\AuditKit",
+        "documentationUrl": "https://github.com/craftpulse/craft-audit-kit/blob/main/README.md"
+    },
+    "scripts": {
+        "check-cs": "ecs check --ansi",
+        "fix-cs": "ecs check --ansi --fix",
+        "phpstan": "phpstan --memory-limit=1G",
+        "test": "pest"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "craftcms/plugin-installer": true,
+            "yiisoft/yii2-composer": true,
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
