@@ -1,5 +1,13 @@
 # Release Notes for Audit Kit
 
+## 1.0.0 - 2026-07-18
+
+> [!IMPORTANT]
+> First stable release. **The `AuditEvent` contract shape is now frozen**: any change to the value object's shape is a major version bump; new outcome/category vocabulary and new engine capabilities are additive minors; recorders must ignore unknown event names. The chain-engine byte contract (canonicalization, genesis sentinel, rowHash computation) is likewise frozen — it underpins live production chains.
+
+### Added
+- Stable contract freeze — no functional changes since 1.0.0-beta.2, which shipped the bridge vocabulary enforcement. The engine is proven in production shape by Password Policy's bit-identity migration (golden-vector verified) and consumed by Ledger, Reeve, and seven emitting plugins.
+
 ## 1.0.0-beta.2 - 2026-07-18
 
 ### Fixed
