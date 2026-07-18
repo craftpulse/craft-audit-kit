@@ -1,5 +1,10 @@
 # Release Notes for Audit Kit
 
+## 1.0.0-beta.2 - 2026-07-18
+
+### Fixed
+- `AuthKitBridge` now enforces Auth Kit's frozen vocabulary: only events whose name is a declared public name constant on the installed `AuthEvent` class are relayed onto the bus (reflected at runtime, so additive-minor vocabulary growth in Auth Kit flows through automatically). Unknown names are dropped with a warning instead of being stamped into recorders' append-only chains under `category: auth`.
+
 ## 1.0.0-beta.1 - 2026-07-17
 
 > [!NOTE]
