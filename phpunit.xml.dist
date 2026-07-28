@@ -24,5 +24,30 @@
     <php>
         <ini name="error_reporting" value="-1"/>
         <ini name="display_errors" value="stderr"/>
+
+        <!--
+            DB isolation. DDEV exports CRAFT_DB_DATABASE=db (the playground's
+            live schema) into the container shell, and craft-pest-core's
+            InstallsCraft plugin boots Craft from a fresh vendor/bin/pest
+            process before PHPUnit itself ever applies these env entries.
+            InstallsCraft works around that ordering problem in
+            loadPhpunitXmlEnvironmentVariables(), which reads getcwd() slash
+            phpunit.xml or phpunit.xml.dist directly and pins $_SERVER,
+            $_ENV, and putenv() before Craft boots, but only when getcwd() is
+            this file's own directory. Run the suite from Audit Kit's own
+            root (vendor/bin/pest, or composer test), never via the shared
+            playground's console pest command with a configuration flag
+            pointing at this file, which leaves getcwd() at the playground
+            root and silently defeats this override so Craft boots against
+            the live db instead.
+        -->
+        <env name="CRAFT_DB_DRIVER" value="mysql" force="true"/>
+        <env name="CRAFT_DB_SERVER" value="db" force="true"/>
+        <env name="CRAFT_DB_PORT" value="3306" force="true"/>
+        <env name="CRAFT_DB_DATABASE" value="db_test" force="true"/>
+        <env name="CRAFT_DB_USER" value="db" force="true"/>
+        <env name="CRAFT_DB_PASSWORD" value="db" force="true"/>
+        <env name="CRAFT_DB_TABLE_PREFIX" value="" force="true"/>
+        <env name="CRAFT_DB_SCHEMA" value="public" force="true"/>
     </php>
 </phpunit>
