@@ -10,27 +10,25 @@ on:
 permissions:
   contents: read
 
+env:
+  CRAFT_DB_DRIVER: mysql
+  CRAFT_DB_SERVER: 127.0.0.1
+  CRAFT_DB_PORT: 3306
+  CRAFT_DB_USER: root
+  CRAFT_DB_PASSWORD: root
+
 jobs:
   pest:
     name: Pest
     runs-on: ubuntu-latest
-    # The suite's phpunit.xml.dist pins CRAFT_DB_SERVER to the literal
-    # hostname "db" (mirroring the local DDEV isolation recipe, where "db" is
-    # DDEV's own database container hostname). GitHub Actions only resolves a
-    # service container by its job key as a hostname when the job itself runs
-    # inside a container — running this job in a container, with the mysql
-    # service keyed "db", satisfies that pin without diverging the CI config
-    # from the DDEV one.
-    container:
-      image: shivammathur/php:8.2
     services:
-      db:
+      mysql:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: db_test
-          MYSQL_USER: db
-          MYSQL_PASSWORD: db
+        ports:
+          - 3306:3306
         options: >-
           --health-cmd="mysqladmin ping --silent"
           --health-interval=10s
@@ -43,6 +41,13 @@ jobs:
         with:
           path: /tmp/composer-cache
           key: ${{ runner.os }}-${{ hashFiles('**/composer.lock') }}
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.2
+          extensions: 'ctype,curl,dom,gd,iconv,imagick,intl,json,mbstring,openssl,pcre,pdo,pdo_mysql,reflection,spl,zip'
+          ini-values: post_max_size=256M, max_execution_time=180, memory_limit=512M
+          tools: composer:v2
       - name: Register auth-kit VCS repository
         run: composer config repositories.craft-auth-kit vcs https://github.com/craftpulse/craft-auth-kit.git
       - name: Install Composer dependencies

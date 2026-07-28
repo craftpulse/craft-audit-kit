@@ -40,14 +40,17 @@
             pointing at this file, which leaves getcwd() at the playground
             root and silently defeats this override so Craft boots against
             the live db instead.
+
+            Only CRAFT_DB_DATABASE and CRAFT_DB_TABLE_PREFIX are forced here:
+            those are the only two values DDEV's ambient environment gets
+            wrong for a suite that needs its own schema (DDEV already exports
+            the correct driver/server/port/user/password for db_test, which
+            lives on the same MySQL instance as the playground's live db).
+            Deliberately NOT forcing driver/server/port/user/password keeps
+            this file portable to CI, which provisions its own MySQL service
+            on its own host/credentials via ordinary (non-forced) job env.
         -->
-        <env name="CRAFT_DB_DRIVER" value="mysql" force="true"/>
-        <env name="CRAFT_DB_SERVER" value="db" force="true"/>
-        <env name="CRAFT_DB_PORT" value="3306" force="true"/>
         <env name="CRAFT_DB_DATABASE" value="db_test" force="true"/>
-        <env name="CRAFT_DB_USER" value="db" force="true"/>
-        <env name="CRAFT_DB_PASSWORD" value="db" force="true"/>
         <env name="CRAFT_DB_TABLE_PREFIX" value="" force="true"/>
-        <env name="CRAFT_DB_SCHEMA" value="public" force="true"/>
     </php>
 </phpunit>
