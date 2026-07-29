@@ -161,7 +161,7 @@ class CertificateGenerator
     {
         $chain = $certificate['chain'] ?? [];
         $rows = [
-            'Subject' => (string)($certificate['subject'] ?? '—'),
+            'Subject' => (string)($certificate['subject'] ?? '-'),
             'Generated' => (string)($certificate['generatedAt'] ?? ''),
             'Algorithm' => (string)($certificate['algorithm'] ?? ''),
             'Chain range' => sprintf('#%s to #%s', $chain['startId'] ?? '?', $chain['endId'] ?? '?'),
