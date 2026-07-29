@@ -179,7 +179,7 @@ class CertificateGenerator
         $anchors = '';
         foreach ($certificate['anchors'] ?? [] as $anchor) {
             $anchors .= '<li>' . Html::encode((string)($anchor['provider'] ?? ''))
-                . ' — ' . Html::encode((string)($anchor['reference'] ?? ''))
+                . ': ' . Html::encode((string)($anchor['reference'] ?? ''))
                 . '</li>';
         }
 
