@@ -4,6 +4,7 @@ on:
   pull_request: null
   push:
     branches:
+      - v5
       - develop-v5
   workflow_dispatch:
 permissions:
@@ -35,8 +36,6 @@ jobs:
           extensions: 'ctype,curl,dom,iconv,imagick,intl,json,mbstring,openssl,pcre,pdo,reflection,spl,zip'
           ini-values: post_max_size=256M, max_execution_time=180, memory_limit=512M
           tools: composer:v2
-      - name: Register auth-kit VCS repository
-        run: composer config repositories.craft-auth-kit vcs https://github.com/craftpulse/craft-auth-kit.git
       - name: Install Composer dependencies
         run: composer install --no-interaction --no-ansi --no-progress
       - run: ${{ matrix.actions.run }}

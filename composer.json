@@ -36,20 +36,11 @@
     "require-dev": {
         "craftcms/ecs": "dev-main",
         "craftcms/phpstan": "dev-main",
-        "craftpulse/craft-auth-kit": "^1.5.0@dev",
+        "craftpulse/craft-auth-kit": "^1.6",
         "markhuot/craft-pest-core": "^3.2"
     },
-    "repositories": [
-        {
-            "type": "path",
-            "url": "../*",
-            "options": {
-                "symlink": true
-            }
-        }
-    ],
     "suggest": {
-        "craftpulse/craft-auth-kit": "Bridges Auth Kit authentication events onto the audit bus (^1.5.0).",
+        "craftpulse/craft-auth-kit": "Bridges Auth Kit authentication events onto the audit bus (^1.6).",
         "aws/aws-sdk-php": "Enables the S3 SIEM forwarder and S3 Object Lock anchor provider (^3.0)."
     },
     "autoload": {
