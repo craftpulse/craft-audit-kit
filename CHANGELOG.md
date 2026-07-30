@@ -1,9 +1,12 @@
 # Release Notes for Audit Kit
 
-## Unreleased
+## 1.0.1 - 2026-07-30
+
+### Changed
+- The test suite now runs against its own `db_test` schema with the plugin installed under test, and CI runs `check-cs` plus the full Pest suite on every push.
 
 ### Fixed
-- `ChainWriter::write()` now retries a bounded number of times, with full-jitter exponential backoff, when the tail-read or the persist closure's insert hits a MySQL serialization failure (deadlock 1213/`SQLSTATE 40001`, or a lock-wait timeout 1205). Each retry re-reads the chain tail and recomputes `previousHash`/`rowHash` inside a fresh transaction, so nothing is reused across attempts. Once the retry budget is exhausted, `write()` throws the new `craftpulse\auditkit\errors\ChainWriteRetriesExhaustedException` instead of letting the underlying database exception propagate uncaught, so callers can requeue the write instead of silently losing the audit event. Live 12-way and 20-way concurrent-write reproductions found 75% and 90% of writers crashing uncaught on the very first deadlock hit before this fix; the same reproductions after the fix land materially more writes and convert every remaining loss into the new, catchable exception.
+- `ChainWriter::write()` no longer loses audit events under concurrent write load. A MySQL serialization failure on the tail-read or on the persist closure's insert (deadlock 1213/`SQLSTATE 40001`, or a lock-wait timeout 1205) previously propagated uncaught; live 12-way and 20-way concurrent-write reproductions had 75% and 90% of writers crashing on the first deadlock hit. Writes are now retried a bounded number of times with full-jitter exponential backoff, and each attempt re-reads the chain tail and recomputes `previousHash`/`rowHash` inside a fresh transaction, so nothing is reused across attempts. Once the retry budget is exhausted, `write()` throws the new `craftpulse\auditkit\errors\ChainWriteRetriesExhaustedException`, which callers can catch to requeue the write.
 
 ## 1.0.0 - 2026-07-18
 
