@@ -1,5 +1,25 @@
 # Release Notes for Audit Kit
 
+## 1.1.0 - Unreleased
+
+> [!IMPORTANT]
+> Audit Kit is now a library-shipped Yii module, not a Craft plugin. It no longer appears in Craft's installed-plugins list and can no longer be enabled or disabled. Consuming plugins must call `AuditKit::register()` from their own `init()` and ship the one-off `PluginAdoption::adopt()` migration. See "Adopting 1.1.0 from the plugin era" in the README for the full retrofit checklist. The `AuditEvent` contract, the canonicalization recipe, and the chain-engine byte contract are unchanged and remain frozen.
+
+### Added
+- `AuditKit::register()` - the idempotent module registration entry point. Every consuming plugin calls it; the first call registers the module and every later call returns the same instance, so any number of consumers can call it on one install with no ordering requirement.
+- `AuditKit::getInstance()` - registers the module on first use and returns it, so migrations and other early-boot contexts never depend on a consumer's `init()` having run first.
+- `AuditKit::getMigrator()` - a kit-owned migration manager on the `module:audit-kit` track. Consumers pump it from their own `Install` migration with `AuditKit::getInstance()->getMigrator()->up()`. No kit migrations ship today; the seam exists so a future one reaches every install without a coordinated release across every consumer.
+- `helpers\PluginAdoption::adopt()` - the idempotent plugin-era adoption helper. It marks plugin-era migration history as applied on the module track, deletes the `audit-kit` row from the `plugins` table, and removes the `plugins.audit-kit` project config entry with project config events muted and read-only temporarily lifted. It never touches kit or consumer tables, and it is a clean no-op on installs that never had the plugin and on repeat runs.
+
+### Changed
+- The Composer package type is now `library` instead of `craft-plugin`, and the plugin `extra` block is gone.
+- `AuditKit` extends `yii\base\Module` instead of `craft\base\Plugin`. The `bus` and `eventTypes` components are attached by the module itself rather than merged in through Craft's plugin config, and the Auth Kit bridge is wired during module registration rather than on `Craft::$app->onInit()`.
+- The test harness registers the module the way a consumer does instead of installing a plugin, and it asserts that Audit Kit never appears in the plugins list.
+
+### Removed
+- `base\PluginTrait`. Its only responsibility, wiring the Auth Kit bridge, moved into module registration.
+- `ServicesTrait::config()`, the Craft plugin component-config hook, replaced by direct component attachment on the module.
+
 ## 1.0.1 - 2026-07-30
 
 ### Changed
