@@ -1,6 +1,6 @@
 <?php
 /**
- * Audit Kit plugin for Craft CMS 5.x
+ * Audit Kit module for Craft CMS 5.x
  *
  * Foundational, tamper-evident audit primitives for Craft.
  *
@@ -154,7 +154,7 @@ class AuthKitBridge
             return;
         }
 
-        AuditKit::$plugin->getBus()->record(new AuditEvent(
+        AuditKit::getInstance()->getBus()->record(new AuditEvent(
             name: $authEvent->name,
             category: self::CATEGORY_AUTH,
             emitter: $authEvent->emitter,

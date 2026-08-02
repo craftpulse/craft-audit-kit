@@ -1,6 +1,6 @@
 <?php
 /**
- * Audit Kit plugin for Craft CMS 5.x
+ * Audit Kit module for Craft CMS 5.x
  *
  * Foundational, tamper-evident audit primitives for Craft.
  *
@@ -14,11 +14,12 @@ namespace craftpulse\auditkit\services;
  * ServicesTrait owns Audit Kit's service component registration and typed
  * accessors.
  *
- * Components are declared in [[config()]], which Craft merges into the plugin's
- * Yii config during construction. Each service gets a typed `getX(): X`
- * accessor that narrows Yii's `?object` return for static analysis. The
- * `@property` tags for property-style access live on this trait's docblock —
- * never duplicate them on the main plugin class.
+ * Components are attached in [[_attachComponents()]], which the module calls
+ * from `AuditKit::init()` (a library-shipped module has no Craft plugin
+ * config-merge, so the module wires its own service locator). Each service
+ * gets a typed `getX(): X` accessor that narrows Yii's `?object` return for
+ * static analysis. The `@property` tags for property-style access live on
+ * this trait's docblock — never duplicate them on the main module class.
  *
  * Only the two stateful runtime registries live here as components — the
  * dispatch [[Bus]] and the [[EventTypes]] registry. The stateless engine
@@ -37,24 +38,6 @@ trait ServicesTrait
 {
     // Public Methods
     // =========================================================================
-
-    /**
-     * Returns the component config Craft merges into the plugin's application config.
-     *
-     * @return array<string, mixed>
-     *
-     * @author CraftPulse
-     * @since 1.0.0
-     */
-    public static function config(): array
-    {
-        return [
-            'components' => [
-                'bus' => ['class' => Bus::class],
-                'eventTypes' => ['class' => EventTypes::class],
-            ],
-        ];
-    }
 
     /**
      * Returns the dispatch bus.
@@ -86,5 +69,24 @@ trait ServicesTrait
         assert($component instanceof EventTypes);
 
         return $component;
+    }
+
+    // Private Methods
+    // =========================================================================
+
+    /**
+     * Attaches Audit Kit's service components to the module's service locator.
+     *
+     * Called once from `AuditKit::init()`.
+     *
+     * @author CraftPulse
+     * @since 1.1.0
+     */
+    private function _attachComponents(): void
+    {
+        $this->setComponents([
+            'bus' => ['class' => Bus::class],
+            'eventTypes' => ['class' => EventTypes::class],
+        ]);
     }
 }
