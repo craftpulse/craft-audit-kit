@@ -1,6 +1,6 @@
 # Release Notes for Audit Kit
 
-## 1.1.0 - Unreleased
+## 1.1.0 - 2026-08-02
 
 > [!IMPORTANT]
 > Audit Kit is now a library-shipped Yii module, not a Craft plugin. It no longer appears in Craft's installed-plugins list and can no longer be enabled or disabled. Consuming plugins must call `AuditKit::register()` from their own `init()` and ship the one-off `PluginAdoption::adopt()` migration. See "Adopting 1.1.0 from the plugin era" in the README for the full retrofit checklist. The `AuditEvent` contract, the canonicalization recipe, and the chain-engine byte contract are unchanged and remain frozen.
