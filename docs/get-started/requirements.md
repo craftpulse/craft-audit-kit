@@ -26,4 +26,4 @@ Neither of these is required, and both surfaces degrade cleanly when the package
 
 ## Database
 
-Audit Kit owns no tables. Chain storage is the consuming plugin's responsibility: you supply the table, the payload shape, and a persist closure, and the engine supplies the hashing and ordering guarantees. The kit's `module:audit-kit` migration track exists and is pumped by consumers, but ships no migrations today.
+Audit Kit owns no tables. Chain storage is the consuming plugin's responsibility: you supply the table, the payload shape, and a persist closure, and the engine supplies the hashing and ordering guarantees. The kit's `module:audit-kit` migration track is pumped by consumers, so any schema the kit does introduce reaches every install through them.

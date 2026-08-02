@@ -67,9 +67,9 @@ public function safeUp(): bool
 
 This affects fresh installs of your plugin, not the install you are retrofitting, whose `Install` already ran. Wire it now anyway so the next fresh install is correct.
 
-The kit ships no migrations today, so the call is currently a no-op. It is the seam that lets a future kit migration reach every install without a coordinated release across every consumer.
+Wire the call even when the kit has nothing pending to apply. It is the seam that lets a kit migration reach every install without a coordinated release across every consumer.
 
-Do not add a matching `getMigrator()->down()` to your `safeDown()`. The kit is shared by every installed consumer, and one plugin's uninstall must not tear down state the other twelve still rely on.
+Do not add a matching `getMigrator()->down()` to your `safeDown()`. The kit is shared by every installed consumer, and one plugin's uninstall must not tear down state the others still rely on.
 
 ## 4. Ship the adoption migration
 
@@ -128,7 +128,7 @@ It never touches kit or consumer tables. Audit chains, exports, and anchors are 
 
 Every step is guarded, so:
 
-- All thirteen consumers ship the same one-liner. The first migration to run does the work; the rest find nothing to do and no-op.
+- Every consumer ships the same one-liner. The first migration to run does the work; the rest find nothing to do and no-op.
 - On an install that never had the plugin, including a fresh 1.1.0 install, every step finds nothing and returns cleanly.
 - Running it twice, or after a partial run, converges to the same state.
 
