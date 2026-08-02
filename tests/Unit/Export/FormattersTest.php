@@ -1,6 +1,6 @@
 <?php
 /**
- * Audit Kit plugin for Craft CMS 5.x
+ * Audit Kit module for Craft CMS 5.x
  *
  * Tests for the export formatters + streaming exporter: CSV formula-injection
  * neutralisation, the chain-verifiable JSONL envelope, the streamed JSON array,

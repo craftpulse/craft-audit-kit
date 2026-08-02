@@ -1,6 +1,6 @@
 <?php
 /**
- * Audit Kit plugin for Craft CMS 5.x
+ * Audit Kit module for Craft CMS 5.x
  *
  * Foundational, tamper-evident audit primitives for Craft.
  *

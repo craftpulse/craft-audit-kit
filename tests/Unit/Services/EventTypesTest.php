@@ -1,6 +1,6 @@
 <?php
 /**
- * Audit Kit plugin for Craft CMS 5.x
+ * Audit Kit module for Craft CMS 5.x
  *
  * Tests for the event-type registry: lazy assembly from the registration
  * event, fail-closed lookup of an unregistered type, and the allowlist strip

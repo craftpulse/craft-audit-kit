@@ -1,6 +1,6 @@
 <?php
 /**
- * Audit Kit plugin for Craft CMS 5.x
+ * Audit Kit module for Craft CMS 5.x
  *
  * Integration coverage for the chain writer + pruner against a real database:
  * a genesis-rooted multi-row write links correctly, the verifier confirms it

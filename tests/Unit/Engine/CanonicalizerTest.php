@@ -1,6 +1,6 @@
 <?php
 /**
- * Audit Kit plugin for Craft CMS 5.x
+ * Audit Kit module for Craft CMS 5.x
  *
  * Pest coverage for `Canonicalizer::canonicalize()` — the byte-stable JSON
  * encoder that drives every audit hash chain in the estate.

@@ -1,6 +1,6 @@
 <?php
 /**
- * Audit Kit plugin for Craft CMS 5.x
+ * Audit Kit module for Craft CMS 5.x
  *
  * Tests for the anchoring module: Merkle root + inclusion-proof round-trip, the
  * RFC 3161 TimeStampReq DER encoding and response-status parse (via a fake

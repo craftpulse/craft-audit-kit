@@ -1,6 +1,6 @@
 <?php
 /**
- * Audit Kit plugin for Craft CMS 5.x
+ * Audit Kit module for Craft CMS 5.x
  *
  * Tests for the dispatch bus: the zero-sink no-op default, lazy assembly from
  * the registration event, ordered fan-out through record(), and the guarantee

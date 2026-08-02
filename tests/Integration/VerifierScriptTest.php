@@ -1,6 +1,6 @@
 <?php
 /**
- * Audit Kit plugin for Craft CMS 5.x
+ * Audit Kit module for Craft CMS 5.x
  *
  * End-to-end coverage for the bundled standalone verifier (`bin/verify-audit-chain.php`).
  * It is exercised exactly as an auditor would: a real JSONL export + certificate

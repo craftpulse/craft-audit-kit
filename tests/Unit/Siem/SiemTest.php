@@ -1,6 +1,6 @@
 <?php
 /**
- * Audit Kit plugin for Craft CMS 5.x
+ * Audit Kit module for Craft CMS 5.x
  *
  * Tests for the SIEM surface: the RFC 5424 syslog frame shape (byte-parity body
  * with the webhook + export), webhook signing + rotation-grace verification, the

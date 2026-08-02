@@ -1,6 +1,6 @@
 <?php
 /**
- * Audit Kit plugin for Craft CMS 5.x
+ * Audit Kit module for Craft CMS 5.x
  *
  * Deterministic regression coverage for ChainWriter's bounded retry/backoff
  * on MySQL serialization failures (Bug #1, 2026-07-27 smoke run). A real

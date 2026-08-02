@@ -1,6 +1,6 @@
 <?php
 /**
- * Audit Kit plugin for Craft CMS 5.x
+ * Audit Kit module for Craft CMS 5.x
  *
  * Integration coverage for the Auth Kit bridge: with Auth Kit present, firing
  * an AuthEvent through Auth Kit's `Audit` service must land a mapped AuditEvent

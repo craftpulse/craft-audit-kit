@@ -1,6 +1,6 @@
 <?php
 /**
- * Audit Kit plugin for Craft CMS 5.x
+ * Audit Kit module for Craft CMS 5.x
  *
  * Tests for the chain verifier: a clean genesis-rooted walk, first-divergence
  * detection on both a rowHash tamper and a previousHash break, and the
