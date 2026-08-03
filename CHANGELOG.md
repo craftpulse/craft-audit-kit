@@ -1,5 +1,9 @@
 # Release Notes for Audit Kit
 
+## 1.1.2 - 2026-08-03
+
+- `craftpulse\auditkit\helpers\PluginAdoption::adopt()` now runs the kit migrator's `up()` on the `module:audit-kit` track itself, so retrofitting a consumer is a single call and an install can no longer end up adopted but never pumped. Consumers that also call `craftpulse\auditkit\AuditKit::getMigrator()`'s `up()` from their own `Install` migration are unaffected, because an applied migration is never a candidate to apply again.
+
 ## 1.1.1 - 2026-08-03
 
 - Fixed a bug where `craftpulse\auditkit\helpers\PluginAdoption::adopt()` left its project config removal to the end of the request, so an adoption migration running in a process that never completes one, such as a test harness or a console process that exits early, could finish with the `plugins` table row deleted and the `plugins.audit-kit` project config entry still present.

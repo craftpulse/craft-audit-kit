@@ -1,8 +1,8 @@
 # Retrofitting a consumer
 
-This is the complete checklist for moving a plugin that depends on Audit Kit 1.0.x, where the kit shipped as a Craft plugin, onto 1.1.0, where it ships as a library-shipped Yii module.
+This is the complete checklist for moving a plugin that depends on Audit Kit 1.0.x, where the kit shipped as a Craft plugin, onto 1.1.x, where it ships as a library-shipped Yii module.
 
-It is four mechanical changes and three verification steps, and it applies unchanged to every consumer. Work through it in order.
+It is three mechanical changes and three verification steps, and it applies unchanged to every consumer. Work through it in order.
 
 If you are adding Audit Kit to a plugin for the first time, you do not need this page. Follow [Installation and setup](../get-started/installation-setup.md) instead and skip the adoption migration entirely.
 
@@ -13,7 +13,7 @@ The kit's Composer type changes from `craft-plugin` to `library`. After `compose
 - Craft no longer boots the kit for you. Nothing constructs the module, so the bus does not exist until a consumer calls `AuditKit::register()`.
 - The install's existing `plugins` table row and `plugins.audit-kit` project config entry now describe a package Craft can no longer discover, and nothing removes them.
 
-Steps 2 and 4 below fix those two things respectively. Steps 1 and 3 are housekeeping.
+Steps 2 and 3 below fix those two things respectively. Step 1 is housekeeping.
 
 What does not change: the `AuditEvent` contract, the canonicalization recipe, and the chain-engine byte format are all frozen and untouched. Your existing chains, retention, exports, and anchors are unaffected, `AuditKit::$plugin` still resolves, and log categories still read `audit-kit`. The 1.1.0 conversion changes how the kit is bootstrapped, never what it serializes.
 
@@ -23,11 +23,13 @@ In your plugin's `composer.json`:
 
 ```json
 "require": {
-    "craftpulse/craft-audit-kit": "^1.1.0"
+    "craftpulse/craft-audit-kit": "^1.1.2"
 }
 ```
 
 The package name is unchanged. Only the constraint moves.
+
+Require 1.1.2 or newer, not 1.1.0. The single-call retrofit below depends on `PluginAdoption::adopt()` pumping the kit migrator itself, which it does from 1.1.2 onwards. On 1.1.0 or 1.1.1 the same code resolves and runs, and the pump silently does not happen.
 
 ## 2. Register the module
 
@@ -50,28 +52,9 @@ If you previously relied on Craft booting the audit-kit plugin, this call replac
 
 Call it unconditionally. It is idempotent, it is cheap, and it is safe before or after any other consumer calls it. Do not guard it with a `Craft::$app->getModule()` check of your own.
 
-## 3. Pump the kit migrator
+## 3. Ship the adoption migration
 
-In your plugin's `Install` migration's `safeUp()`:
-
-```php
-public function safeUp(): bool
-{
-    \craftpulse\auditkit\AuditKit::getInstance()->getMigrator()->up();
-
-    // ... your own schema
-
-    return true;
-}
-```
-
-This affects fresh installs of your plugin, not the install you are retrofitting, whose `Install` already ran. Wire it now anyway so the next fresh install is correct.
-
-Wire the call even when the kit has nothing pending to apply. It is the seam that lets a kit migration reach every install without a coordinated release across every consumer.
-
-Do not add a matching `getMigrator()->down()` to your `safeDown()`. The kit is shared by every installed consumer, and one plugin's uninstall must not tear down state the others still rely on.
-
-## 4. Ship the adoption migration
+`PluginAdoption::adopt()` is the whole contract. There is no second call to remember: it sheds the plugin-era registration and brings the kit's own migration track up to date, so there is no way to retrofit half of it.
 
 Add a new plugin migration so existing installs shed the plugin-era registration:
 
@@ -114,6 +97,27 @@ This is a plugin migration on your own track, not a content migration and not an
 
 It is irreversible by design. Reverting would mean reinstating a plugin registration for a package that is no longer a plugin, which is not a state worth being able to return to.
 
+### Call it from your `Install` migration too
+
+The dated migration above covers installs that already have your plugin. It does not cover a fresh install, because Craft stamps dated migrations as applied *without running them* when your plugin installs for the first time. So make the same call from `Install::safeUp()`:
+
+```php
+public function safeUp(): bool
+{
+    \craftpulse\auditkit\helpers\PluginAdoption::adopt();
+
+    // ... your own schema
+
+    return true;
+}
+```
+
+A fresh install of your plugin is not the same thing as a clean database. A site that once ran the 1.0.x Audit Kit plugin still has the `audit-kit` row in its `plugins` table and the `plugins.audit-kit` project config entry, and on that site the dated migration never gets the chance to clear them. Nothing else would, and the stale registration would keep Audit Kit listed as a plugin indefinitely.
+
+Both call sites are the same one-liner. `adopt()` is a no-op wherever its work is already done, so an install that reaches both is not doing the work twice.
+
+Do not add a matching `getMigrator()->down()` to your `safeDown()`, and do not reach for anything that would tear the kit down. The kit is shared by every installed consumer, and one plugin's uninstall must not remove state the others still rely on.
+
 ### What `adopt()` does
 
 In order:
@@ -121,10 +125,21 @@ In order:
 1. Marks any plugin-era migration history on the `plugin:audit-kit` track as applied on the `module:audit-kit` track, so the module migrator never re-runs a migration the plugin era already applied, then deletes the plugin-track rows. The synthetic `Install` row Craft records for plugin installs is dropped rather than copied, because it names no migration class on the module track.
 2. Removes the `plugins.audit-kit` project config entry, with project config events muted and read-only temporarily lifted, mirroring what Craft's own forced plugin uninstall does. Muting matters: nothing may react to the removal as if a real uninstall were happening. Both the loaded config and the external YAML are checked, because an entry left behind in YAML is treated as a plugin that still needs installing on the next external apply.
 3. Deletes the `audit-kit` row from the `plugins` table.
+4. Runs the kit migrator's `up()` on the `module:audit-kit` track, applying anything genuinely pending: everything on an install that has never pumped the kit, only the unapplied deltas on a partially updated one, and nothing at all when the track is already current.
 
-The database row goes last on purpose. If the project config step fails, the registration is still in place and the next adoption call retries the whole removal, rather than leaving an install whose `plugins` row is gone while project config still names the plugin.
+The database row goes last of the removal steps on purpose. If the project config step fails, the registration is still in place and the next adoption call retries the whole removal, rather than leaving an install whose `plugins` row is gone while project config still names the plugin.
 
 It never touches kit or consumer tables. Audit chains, exports, and anchors are untouched.
+
+### The migrator pump is inside `adopt()`
+
+Step 4 is why one call is enough, and it is worth understanding rather than taking on trust.
+
+Audit Kit ships no migrations today, so the pump applies nothing on any install right now. The seam is the point: it is what lets a future kit migration reach every install without a coordinated release across every consumer. Because it lives inside `adopt()`, a consumer gets it by shipping the retrofit, and there is no separate call whose absence would go unnoticed until a kit migration actually shipped.
+
+That also makes `adopt()` a strict superset of the bare `AuditKit::getInstance()->getMigrator()->up()`. On an install that never had the plugin, every removal step finds nothing and the call degrades to exactly the `up()` it replaces.
+
+**An explicit `getMigrator()->up()` in your `Install::safeUp()` remains correct and harmless.** If you retrofitted against an earlier version of this guide and already have one, leave it. `MigrationManager::up()` applies only what `getNewMigrations()` reports, and that filters the migration directory against the recorded history, so a migration the explicit call already applied is never a candidate again and the pump finds nothing to do. Keeping it costs a redundant query. Removing it is fine too, as long as the `adopt()` call in `Install::safeUp()` replaces it.
 
 ### The removal is durable before `adopt()` returns
 
@@ -139,7 +154,7 @@ The one case where the YAML is deliberately left alone is a run with external ch
 Every step is guarded, so:
 
 - Every consumer ships the same one-liner. The first migration to run does the work; the rest find nothing to do and no-op.
-- On an install that never had the plugin, including a fresh 1.1.0 install, every step finds nothing and returns cleanly.
+- On an install that never had the plugin, including a fresh module-era install, the removal steps all find nothing and the call is just the migrator pump.
 - Running it twice, or after a partial run, converges to the same state.
 
 Ship it in whichever consumer you retrofit first, and in all the others too. There is no need to decide which plugin owns the adoption, and no coordination between consumers.

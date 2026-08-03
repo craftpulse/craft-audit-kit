@@ -15,6 +15,7 @@ use craft\db\Query;
 use craft\db\Table;
 use craft\helpers\Db;
 use craft\services\ProjectConfig;
+use craftpulse\auditkit\AuditKit;
 
 /**
  * PluginAdoption migrates an install from the plugin-era Audit Kit (1.0.x,
@@ -43,15 +44,30 @@ use craft\services\ProjectConfig;
  *    nothing may react to the removal as if a real uninstall were happening.
  *    The removal is flushed before the call returns, so it does not depend on
  *    a request lifecycle the migration may never reach.
- * 3. Deletes the `audit-kit` row from the `plugins` table, last, so a failure
- *    part-way through leaves a registration the next adoption call retries
- *    from. Kit tables are never touched (the kit owns none; consumer chain
- *    tables belong to the consumers).
+ * 3. Deletes the `audit-kit` row from the `plugins` table, last of the removal
+ *    steps, so a failure part-way through leaves a registration the next
+ *    adoption call retries from. Kit tables are never touched (the kit owns
+ *    none; consumer chain tables belong to the consumers).
+ * 4. Runs the kit migrator's `up()` on the `module:audit-kit` track, applying
+ *    anything genuinely pending: everything on an install that has never
+ *    pumped the kit, only the unapplied deltas on a partially updated one, and
+ *    nothing at all when the track is already current (no kit migrations ship
+ *    today, so this is a no-op on every install right now). Added in 1.1.2.
+ *
+ * Step 4 is what makes this a strict superset of the bare
+ * `AuditKit::getInstance()->getMigrator()->up()`, which is the whole point:
+ * one call is the entire contract, so a consumer cannot retrofit correctly and
+ * still silently miss the pump. A consumer that also calls `up()` from its own
+ * `Install::safeUp()` (Herald and Password Policy both do) is unaffected:
+ * `MigrationManager::up()` applies only what `getNewMigrations()` reports, and
+ * that method filters the migration directory against the recorded history, so
+ * an already-applied migration is never a candidate and the second call finds
+ * nothing to do.
  *
  * Every step is guarded, so the helper is idempotent (all thirteen consumers
  * ship the same one-liner and all thirteen may run it on one install; the
  * first does the work, the rest no-op) and safe on installs that never had
- * the plugin (fresh installs adopt nothing and no step fails).
+ * the plugin, where it degrades to exactly the `up()` it replaces.
  *
  * @author CraftPulse
  * @since 1.1.0
@@ -78,8 +94,9 @@ final class PluginAdoption
     /**
      * @var string The module migration track plugin-era history is adopted
      * onto. Kept as a literal (rather than referencing
-     * `AuditKit::MIGRATION_TRACK`) so this helper never needs the module
-     * registered to run.
+     * `AuditKit::MIGRATION_TRACK`) so the history adoption never needs the
+     * module registered to run; the migrator pump that follows it registers the
+     * module lazily through [[\craftpulse\auditkit\AuditKit::getInstance()]].
      *
      * @since 1.1.0
      */
@@ -98,12 +115,26 @@ final class PluginAdoption
     // =========================================================================
 
     /**
-     * Adopts the plugin-era Audit Kit registration into the module world. See
-     * the class docblock for the exact steps. Idempotent and safe on installs
-     * that never had the plugin.
+     * Adopts the plugin-era Audit Kit registration into the module world and
+     * brings the kit's migration track up to date. See the class docblock for
+     * the exact steps. Idempotent and safe on installs that never had the
+     * plugin, where it degrades to a plain migrator pump.
+     *
+     * This is the whole contract a consumer needs, and the only call its
+     * retrofit migration makes:
+     *
+     * ```php
+     * public function safeUp(): bool
+     * {
+     *     \craftpulse\auditkit\helpers\PluginAdoption::adopt();
+     *
+     *     return true;
+     * }
+     * ```
      *
      * @throws \Throwable if a database write or the project config removal
-     * fails; the caller's migration should surface that as a failed migration
+     * fails, or if a pending kit migration fails to apply; the caller's
+     * migration should surface that as a failed migration
      *
      * @author CraftPulse
      * @since 1.1.0
@@ -113,6 +144,10 @@ final class PluginAdoption
         self::_adoptMigrationHistory();
         self::_removeProjectConfigEntry();
         self::_deletePluginRow();
+
+        // The pump, since 1.1.2: a consumer gets the catch-up for free rather
+        // than having to remember a second call of its own.
+        AuditKit::getInstance()->getMigrator()->up();
     }
 
     // Private Methods

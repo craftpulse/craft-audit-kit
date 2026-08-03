@@ -7,7 +7,9 @@
  * move plugin-track migration history onto the module track (dropping the
  * synthetic `Install` row), remove the project config entry with events muted,
  * and delete the plugins-table row - in that order, durably, and without
- * touching anything that belongs to another plugin.
+ * touching anything that belongs to another plugin. Since 1.1.2 it must then
+ * pump the kit migrator, which is what makes the one call a strict superset of
+ * the bare `getMigrator()->up()` a consumer would otherwise have to remember.
  *
  * The project config assertions here deliberately read the *stored* config
  * (the `projectconfig` table and the YAML on disk) rather than the loaded
@@ -20,12 +22,15 @@
  * @copyright Copyright (c) 2026 CraftPulse
  */
 
+use craft\db\MigrationManager;
 use craft\db\Query;
 use craft\db\Table;
 use craft\helpers\Db;
 use craft\helpers\FileHelper;
 use craft\services\ProjectConfig;
+use craftpulse\auditkit\AuditKit;
 use craftpulse\auditkit\helpers\PluginAdoption;
+use craftpulse\auditkit\migrations\m269901_000000_pump_fixture;
 use Symfony\Component\Yaml\Yaml;
 use yii\base\Event;
 
@@ -34,6 +39,12 @@ use yii\base\Event;
  * issues is scoped to Audit Kit's own registration.
  */
 const FOREIGN_HANDLE = 'audit-kit-test-consumer';
+
+/**
+ * @var string The name of the stand-in kit migration the pump tests apply. See
+ * `tests/fixtures/migrations/m269901_000000_pump_fixture.php`.
+ */
+const PUMP_FIXTURE = 'm269901_000000_pump_fixture';
 
 /**
  * Returns the project config path a plugin registers itself under.
@@ -117,6 +128,43 @@ function seedExternalConfigWithPluginEntry(): void
     // Drop the memoized external config and file list so the seeded file is
     // what the service reads next.
     $projectConfig->reset();
+}
+
+/**
+ * Points the kit migrator at the fixture migration directory, resets the
+ * fixture's applied counter, and returns the module's original `migrator`
+ * definition so the caller can put it back.
+ *
+ * The kit ships no migrations, so this is the only way to watch the pump do
+ * work: a real migration, discovered and applied through the real
+ * `MigrationManager` on the real `module:audit-kit` track.
+ *
+ * The fixture file is required explicitly because Composer maps the kit's
+ * migration namespace to `src/` and this file lives under `tests/`. Nothing
+ * else needs it: `MigrationManager` requires the file it discovers itself, but
+ * the counter is read before the pump has had a chance to.
+ *
+ * @return array<string, mixed> the original component definition
+ */
+function swapKitMigratorForFixture(): array
+{
+    $module = AuditKit::getInstance();
+    $path = dirname(__DIR__) . '/fixtures/migrations';
+
+    /** @var array<string, mixed> $original */
+    $original = $module->getComponents()['migrator'];
+
+    $module->set('migrator', [
+        'class' => MigrationManager::class,
+        'track' => AuditKit::MIGRATION_TRACK,
+        'migrationNamespace' => 'craftpulse\\auditkit\\migrations',
+        'migrationPath' => $path,
+    ]);
+
+    require_once $path . '/' . PUMP_FIXTURE . '.php';
+    m269901_000000_pump_fixture::$applied = 0;
+
+    return $original;
 }
 
 /**
@@ -385,6 +433,68 @@ it('is idempotent when every consumer runs the same adoption one-liner', functio
 
     // The second run wrote nothing: a clean no-op, not merely a quiet one.
     expect(Craft::$app->getInfo()->configVersion)->toBe($configVersion);
+});
+
+it('pumps the kit migrator on an install that never had the plugin', function() {
+    $original = swapKitMigratorForFixture();
+
+    try {
+        // No plugin-era registration to shed: every removal step finds nothing,
+        // so all `adopt()` has left to do is the pump. This is the whole
+        // superset claim, from the side where the superset is only the pump.
+        PluginAdoption::adopt();
+
+        expect(m269901_000000_pump_fixture::$applied)->toBe(1);
+        expect(migrationNamesOnTrack(PluginAdoption::MODULE_TRACK))->toBe([PUMP_FIXTURE]);
+    } finally {
+        AuditKit::getInstance()->set('migrator', $original);
+    }
+});
+
+it('pumps the kit migrator after shedding a plugin-era registration', function() {
+    $original = swapKitMigratorForFixture();
+
+    try {
+        seedPluginEraRegistration();
+        seedPluginEraConfigEntry();
+
+        PluginAdoption::adopt();
+
+        // The removal ran and the pump ran, in that order: the adopted
+        // plugin-era history is on the track alongside the newly applied
+        // migration, and the registration is gone.
+        expect(m269901_000000_pump_fixture::$applied)->toBe(1);
+        expect(migrationNamesOnTrack(PluginAdoption::MODULE_TRACK))
+            ->toContain('m260101_000000_audit-kit_fixture')
+            ->toContain(PUMP_FIXTURE);
+        expect(pluginRowExists())->toBeFalse();
+        expect(storedConfigPaths())->toBe([]);
+    } finally {
+        AuditKit::getInstance()->set('migrator', $original);
+    }
+});
+
+it('leaves a consumer that pumps the migrator itself unaffected', function() {
+    $original = swapKitMigratorForFixture();
+
+    try {
+        // The explicit pump a retrofitted consumer already ships in its own
+        // `Install::safeUp()`. Herald and Password Policy both call this, and
+        // neither had to drop it when `adopt()` grew one of its own.
+        AuditKit::getInstance()->getMigrator()->up();
+        expect(m269901_000000_pump_fixture::$applied)->toBe(1);
+
+        PluginAdoption::adopt();
+
+        // `MigrationManager::up()` applies only what `getNewMigrations()`
+        // reports, and that filters the migration directory against the
+        // recorded history, so an applied migration is never a candidate again.
+        // Redundant, not harmful.
+        expect(m269901_000000_pump_fixture::$applied)->toBe(1);
+        expect(migrationNamesOnTrack(PluginAdoption::MODULE_TRACK))->toBe([PUMP_FIXTURE]);
+    } finally {
+        AuditKit::getInstance()->set('migrator', $original);
+    }
 });
 
 it('touches nothing outside its own registration', function() {
