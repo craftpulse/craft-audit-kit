@@ -2,7 +2,6 @@
     "name": "craftpulse/craft-audit-kit",
     "description": "Foundational, tamper-evident audit primitives for Craft CMS: a neutral audit event contract, a dispatch bus, a byte-deterministic SHA-256 hash-chain engine, export formatters, SIEM forwarders, and external anchoring. The shared compliance base for the CraftPulse ecosystem.",
     "type": "library",
-    "version": "1.1.2",
     "license": "MIT",
     "keywords": [
         "craft",
@@ -51,6 +50,12 @@
     "autoload-dev": {
         "psr-4": {
             "craftpulse\\auditkit\\tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-develop-v5": "1.x-dev",
+            "dev-v5": "1.x-dev"
         }
     },
     "scripts": {
