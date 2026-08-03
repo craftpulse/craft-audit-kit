@@ -1,5 +1,11 @@
 # Release Notes for Audit Kit
 
+## 1.1.1 - 2026-08-03
+
+- Fixed a bug where `craftpulse\auditkit\helpers\PluginAdoption::adopt()` left its project config removal to the end of the request, so an adoption migration running in a process that never completes one, such as a test harness or a console process that exits early, could finish with the `plugins` table row deleted and the `plugins.audit-kit` project config entry still present.
+- Fixed a bug where `craftpulse\auditkit\helpers\PluginAdoption::adopt()` only checked the loaded project config, so a `plugins.audit-kit` entry that existed in the project config YAML alone was left there, where the next external apply treats it as a plugin that still needs installing.
+- Fixed a bug where `craftpulse\auditkit\helpers\PluginAdoption::adopt()` deleted the `plugins` table row before removing the project config entry, so a failure part way through left the install with no `plugins` row and a project config entry still naming the plugin.
+
 ## 1.1.0 - 2026-08-02
 
 > [!IMPORTANT]

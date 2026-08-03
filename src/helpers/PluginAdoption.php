@@ -37,13 +37,16 @@ use craft\services\ProjectConfig;
  *    the plugin-track rows. The synthetic `Install` row Craft records for
  *    plugin installs is dropped, not copied: it names no migration class on
  *    the module track.
- * 2. Deletes the `audit-kit` row from the `plugins` table. Kit tables are
- *    never touched (the kit owns none; consumer chain tables belong to the
- *    consumers).
- * 3. Removes the `plugins.audit-kit` project config entry with project config
+ * 2. Removes the `plugins.audit-kit` project config entry with project config
  *    events muted and read-only temporarily lifted, mirroring what Craft's own
  *    `Plugins::uninstallPlugin($handle, force: true)` does. Muting matters:
  *    nothing may react to the removal as if a real uninstall were happening.
+ *    The removal is flushed before the call returns, so it does not depend on
+ *    a request lifecycle the migration may never reach.
+ * 3. Deletes the `audit-kit` row from the `plugins` table, last, so a failure
+ *    part-way through leaves a registration the next adoption call retries
+ *    from. Kit tables are never touched (the kit owns none; consumer chain
+ *    tables belong to the consumers).
  *
  * Every step is guarded, so the helper is idempotent (all thirteen consumers
  * ship the same one-liner and all thirteen may run it on one install; the
@@ -99,8 +102,8 @@ final class PluginAdoption
      * the class docblock for the exact steps. Idempotent and safe on installs
      * that never had the plugin.
      *
-     * @throws \Throwable if a database write fails; the caller's migration
-     * should surface that as a failed migration
+     * @throws \Throwable if a database write or the project config removal
+     * fails; the caller's migration should surface that as a failed migration
      *
      * @author CraftPulse
      * @since 1.1.0
@@ -108,8 +111,8 @@ final class PluginAdoption
     public static function adopt(): void
     {
         self::_adoptMigrationHistory();
-        self::_deletePluginRow();
         self::_removeProjectConfigEntry();
+        self::_deletePluginRow();
     }
 
     // Private Methods
@@ -186,6 +189,37 @@ final class PluginAdoption
      * Removes the plugin-era project config entry with events muted and
      * read-only temporarily lifted, then restores both flags.
      *
+     * Both the loaded config and the external (YAML) config are checked, and
+     * the removal goes through `set(null, force: true)` rather than `remove()`,
+     * because an entry left behind in YAML is treated as a plugin that still
+     * needs installing on the next external apply. `remove()` compares the new
+     * value against the loaded config only, so an entry that exists in YAML
+     * alone reads as unchanged, is skipped, and never marks the YAML for a
+     * rewrite; forcing it makes the flush regenerate the YAML without the entry.
+     *
+     * Project config events are muted across the removal and the flush. They
+     * fire synchronously inside `set()` (see
+     * [[\craft\models\ProjectConfigData::commitChanges()]]), so a mute covering
+     * only the removal could still let the flush re-fire them, and nothing may
+     * react to this as if a real uninstall were happening.
+     *
+     * The flush is explicit on purpose. `set()` commits to the loaded working
+     * config and defers persistence to `EVENT_AFTER_REQUEST`, which a migration
+     * cannot count on reaching: a console process that exits early, or a harness
+     * that boots the app without a request lifecycle, would drop the change and
+     * leave the plugin registered in project config even though the `plugins`
+     * row is gone. Flushing here writes the config data and, on installs that
+     * write YAML automatically, the YAML files, so the removal is durable the
+     * moment this returns. Where Craft has deliberately turned automatic YAML
+     * writing off because external changes are pending (see
+     * [[\craft\console\controllers\MigrateController::runAction()]]), the flush
+     * writes the config data only and the developer's YAML is left alone; the
+     * retrofit guide's `project-config/diff` check covers that case.
+     *
+     * @throws \Throwable if the removal or the flush fails; the `plugins` row is
+     * deleted after this returns, so a failure here leaves a registration the
+     * next adoption call retries from
+     *
      * @author CraftPulse
      * @since 1.1.0
      */
@@ -194,7 +228,10 @@ final class PluginAdoption
         $projectConfig = Craft::$app->getProjectConfig();
         $path = ProjectConfig::PATH_PLUGINS . '.' . self::PLUGIN_HANDLE;
 
-        if ($projectConfig->get($path) === null) {
+        $isRegistered = $projectConfig->get($path) !== null
+            || $projectConfig->get($path, true) !== null;
+
+        if (!$isRegistered) {
             return;
         }
 
@@ -204,7 +241,14 @@ final class PluginAdoption
         $projectConfig->readOnly = false;
 
         try {
-            $projectConfig->remove($path, sprintf('Adopt the "%s" plugin as a library-shipped module', self::PLUGIN_HANDLE));
+            $projectConfig->set(
+                $path,
+                null,
+                sprintf('Adopt the "%s" plugin as a library-shipped module', self::PLUGIN_HANDLE),
+                force: true,
+            );
+
+            $projectConfig->flush();
         } finally {
             $projectConfig->readOnly = $readOnly;
             $projectConfig->muteEvents = $muteEvents;

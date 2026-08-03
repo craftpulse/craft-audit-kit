@@ -119,10 +119,20 @@ It is irreversible by design. Reverting would mean reinstating a plugin registra
 In order:
 
 1. Marks any plugin-era migration history on the `plugin:audit-kit` track as applied on the `module:audit-kit` track, so the module migrator never re-runs a migration the plugin era already applied, then deletes the plugin-track rows. The synthetic `Install` row Craft records for plugin installs is dropped rather than copied, because it names no migration class on the module track.
-2. Deletes the `audit-kit` row from the `plugins` table.
-3. Removes the `plugins.audit-kit` project config entry, with project config events muted and read-only temporarily lifted, mirroring what Craft's own forced plugin uninstall does. Muting matters: nothing may react to the removal as if a real uninstall were happening.
+2. Removes the `plugins.audit-kit` project config entry, with project config events muted and read-only temporarily lifted, mirroring what Craft's own forced plugin uninstall does. Muting matters: nothing may react to the removal as if a real uninstall were happening. Both the loaded config and the external YAML are checked, because an entry left behind in YAML is treated as a plugin that still needs installing on the next external apply.
+3. Deletes the `audit-kit` row from the `plugins` table.
+
+The database row goes last on purpose. If the project config step fails, the registration is still in place and the next adoption call retries the whole removal, rather than leaving an install whose `plugins` row is gone while project config still names the plugin.
 
 It never touches kit or consumer tables. Audit chains, exports, and anchors are untouched.
+
+### The removal is durable before `adopt()` returns
+
+You do not need to flush project config yourself, and you should not try to.
+
+`ProjectConfig::set()` commits to the loaded working config and leaves persistence to the end of the request, which a migration cannot count on reaching: a console process that exits early, or a test harness that boots Craft without a request lifecycle, drops the change. So `adopt()` flushes the removal itself, with events still muted, before it returns. Once the call comes back, the entry is written out of the stored config and, on installs that write YAML automatically, out of the YAML files.
+
+The one case where the YAML is deliberately left alone is a run with external changes already pending: Craft turns automatic YAML writing off for the whole migration so a migration cannot clobber your incoming changes. The stored config is still updated. That is what the `project-config/diff` check below is for.
 
 ### It is safe in every combination
 
@@ -156,7 +166,9 @@ Or through DDEV:
 ddev craft project-config/diff
 ```
 
-There must be no pending change under `plugins.audit-kit`. An entry still showing here means step 3 of `adopt()` did not complete, usually because project config was read-only at the time and the lift failed.
+There must be no pending change under `plugins.audit-kit`. An entry still showing here means step 2 could not write the YAML, which is what happens when the migration ran while other project config changes were already pending: Craft turns automatic YAML writing off for the whole migration run.
+
+Fix it by deleting the `plugins.audit-kit` block from `config/project/project.yaml` and committing that alongside the rest of your retrofit. Nothing re-adds it, because the package is no longer a plugin. Leave it in place and the next `project-config/apply` treats it as a plugin that still needs installing.
 
 Run this on every environment you deploy to, not just one. Project config is per-environment state and a stale entry on staging is a real deploy failure waiting to happen.
 
